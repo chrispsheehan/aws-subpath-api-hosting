@@ -21,10 +21,10 @@ deploy:
     just build
     cd tf
     terraform init
-    terraform apply -var lambda_zip_path=$(just zip-path)
+    terraform apply --auto-approve -var lambda_zip_path=$(just zip-path)
 
 destroy:
     #!/usr/bin/env bash
     cd tf
     terraform init
-    terraform destroy -var lambda_zip_path=$(just zip-path)
+    terraform destroy --auto-approve -var lambda_zip_path=$(just zip-path)
