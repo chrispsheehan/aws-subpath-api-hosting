@@ -5,7 +5,7 @@ zip-path:
 build:
     #!/usr/bin/env bash
     zip_path=$(just zip-path)
-    cd src
+    cd api
     npm install
     rm -f $zip_path
     zip -r $zip_path *
