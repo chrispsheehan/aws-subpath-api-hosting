@@ -4,3 +4,5 @@ node_modules
 .terraform
 *.lock.hcl
 .DS_Store
+
+package-lock.json
