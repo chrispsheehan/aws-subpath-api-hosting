@@ -1,3 +1,7 @@
+output "cloudfront_url" {
+  value = "https://${aws_cloudfront_distribution.this.domain_name}"
+}
+
 output "api_gateway_url" {
   value = aws_apigatewayv2_stage.this.invoke_url
 }

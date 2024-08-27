@@ -55,3 +55,130 @@ resource "aws_apigatewayv2_stage" "this" {
   name        = var.function_stage
   auto_deploy = true
 }
+
+resource "aws_s3_bucket" "website_files" {
+  bucket        = local.domain
+  force_destroy = true
+}
+
+resource "aws_s3_object" "index_file" {
+  bucket       = aws_s3_bucket.website_files.bucket
+  key          = basename(var.index_file_path)
+  source       = var.index_file_path
+  content_type = "text/html"
+  etag         = filemd5(var.index_file_path)
+}
+
+resource "aws_s3_bucket_ownership_controls" "website_files" {
+  depends_on = [aws_s3_bucket.website_files]
+  bucket     = aws_s3_bucket.website_files.id
+  rule {
+    object_ownership = "BucketOwnerEnforced"
+  }
+}
+
+resource "aws_s3_bucket_policy" "website_files_policy" {
+  bucket = aws_s3_bucket.website_files.id
+  policy = data.aws_iam_policy_document.website_files_policy.json
+}
+
+resource "aws_cloudfront_origin_access_control" "oac" {
+  name                              = "oac-${local.domain}"
+  description                       = "OAC Policy for ${local.domain}"
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
+}
+
+resource "aws_cloudfront_distribution" "this" {
+  enabled = true
+  origin {
+    domain_name              = aws_s3_bucket.website_files.bucket_regional_domain_name
+    origin_id                = aws_s3_bucket.website_files.bucket_regional_domain_name
+    origin_access_control_id = aws_cloudfront_origin_access_control.oac.id
+  }
+
+  custom_error_response {
+    error_caching_min_ttl = 10
+    error_code            = 403
+    response_code         = 200
+    response_page_path    = "/${basename(var.index_file_path)}"
+  }
+
+  origin {
+    domain_name = replace(
+      replace(aws_apigatewayv2_stage.this.invoke_url, "https://", ""),
+      "/${aws_apigatewayv2_stage.this.name}",
+      ""
+    )
+    origin_id   = local.api_domain
+    origin_path = "/${aws_apigatewayv2_stage.this.name}"
+
+    custom_origin_config {
+      http_port                = 80
+      https_port               = 443
+      origin_protocol_policy   = "https-only"
+      origin_ssl_protocols     = ["TLSv1.2"]
+      origin_keepalive_timeout = 5
+      origin_read_timeout      = 30
+    }
+  }
+
+  default_cache_behavior {
+    target_origin_id       = aws_s3_bucket.website_files.bucket_regional_domain_name
+    viewer_protocol_policy = "redirect-to-https"
+
+    allowed_methods = ["GET", "HEAD", "OPTIONS"]
+    cached_methods  = ["GET", "HEAD"]
+
+    forwarded_values {
+      query_string = true
+      cookies {
+        forward = "none"
+      }
+    }
+
+    min_ttl     = 0
+    default_ttl = 3600
+    max_ttl     = 86400
+    compress    = true
+  }
+
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+
+  viewer_certificate {
+    cloudfront_default_certificate = true
+  }
+
+  custom_error_response {
+    error_code            = 404
+    response_code         = 404
+    response_page_path    = "/404.html"
+    error_caching_min_ttl = 300
+  }
+
+  ordered_cache_behavior {
+    path_pattern           = "/api/*"
+    target_origin_id       = local.api_domain
+    viewer_protocol_policy = "redirect-to-https"
+
+    allowed_methods = ["GET", "HEAD", "OPTIONS"]
+    cached_methods  = ["GET", "HEAD"]
+
+    forwarded_values {
+      query_string = true
+      cookies {
+        forward = "none"
+      }
+    }
+
+    min_ttl     = 0
+    default_ttl = 3600
+    max_ttl     = 86400
+    compress    = true
+  }
+}

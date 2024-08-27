@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple API Fetch</title>
+</head>
+<body>
+    <h1>API Response</h1>
+    <pre id="apiResponse">Loading...</pre>
+
+    <script>
+        // Use the relative path to the API
+        const apiUrl = '/api/data';
+
+        // Fetch data from the API and display it
+        fetch(apiUrl)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('apiResponse').textContent = JSON.stringify(data, null, 2);
+            })
+            .catch(error => {
+                console.error('Error fetching data:', error);
+                document.getElementById('apiResponse').textContent = 'Error fetching data.';
+            });
+    </script>ß
+</body>
+</html>
