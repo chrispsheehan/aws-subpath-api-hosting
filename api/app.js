@@ -9,9 +9,20 @@ app.use((req, res, next) => {
   next(); // Pass control to the next route or middleware
 });
 
-// Define routes
+// Define routes this needs to contain the stage path
+app.get('/hello', (req, res) => {
+  res.status(200).json({msg: "/hello Hello, this is your AWS Lambda function, [mushroom] testy badgers!"});
+});
+
+
+// Define routes this needs to contain the stage path
 app.get('/dev/api/hello', (req, res) => {
-  res.status(200).json({msg: "Hello, this is your AWS Lambda function, [mushroom] testy badgers!"});
+  res.status(200).json({msg: "/dev/api/hello Hello, this is your AWS Lambda function, [mushroom] testy badgers!"});
+});
+
+// Define routes
+app.get('/api/hello', (req, res) => {
+  res.status(200).json({msg: "/api/hello Hello, this is your AWS Lambda function, [mushroom] testy badgers!"});
 });
 
 // Catch-all route for unmatched paths
