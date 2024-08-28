@@ -22,6 +22,7 @@ plan:
 
 deploy:
     #!/usr/bin/env bash
+    set -euo pipefail
     just build
     cd tf
     terraform init
@@ -29,6 +30,7 @@ deploy:
 
 destroy:
     #!/usr/bin/env bash
+    set -euo pipefail
     cd tf
     terraform init
     terraform destroy --auto-approve -var lambda_zip_path=$(just zip-path) -var index_file_path=$(just index-path)
