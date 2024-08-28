@@ -10,14 +10,14 @@ app.use((req, res, next) => {
 });
 
 // Define routes
-app.get('/hello', (req, res) => {
+app.get('/dev/api/hello', (req, res) => {
   res.status(200).json({msg: "Hello, this is your AWS Lambda function, [mushroom] testy badgers!"});
 });
 
 // Catch-all route for unmatched paths
 app.use((req, res) => {
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-  res.status(200).json({msg: `Hello, here's your IP: ${ip}`});
+  res.status(200).json({msg: `Hello, here's your IP: ${ip} req ${req.url}`});
 });
 
 // Create and export the server
