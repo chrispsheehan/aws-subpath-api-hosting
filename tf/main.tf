@@ -113,7 +113,7 @@ resource "aws_cloudfront_distribution" "this" {
       ""
     )
     origin_id   = local.api_domain
-    origin_path = "/${aws_apigatewayv2_stage.this.name}/api"
+    origin_path = "/${aws_apigatewayv2_stage.this.name}"
 
     custom_origin_config {
       http_port                = 80
