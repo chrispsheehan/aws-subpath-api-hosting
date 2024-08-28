@@ -43,19 +43,6 @@ resource "aws_apigatewayv2_integration" "this" {
   api_id           = aws_apigatewayv2_api.this.id
   integration_type = "AWS_PROXY"
   integration_uri  = aws_lambda_function.lambda.invoke_arn
-
-  request_templates = {
-    "application/json" = <<EOF
-{
-  "path": "$util.escapeJavaScript($input.params('proxy')).replaceAll('^/dev/api', '')",
-  "httpMethod": "$context.httpMethod",
-  "headers": $input.params().header,
-  "queryStringParameters": $input.params().querystring,
-  "body": $input.body,
-  "stageVariables": $stageVariables
-}
-EOF
-  }
 }
 
 resource "aws_apigatewayv2_route" "this" {
