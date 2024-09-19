@@ -62,6 +62,15 @@ resource "aws_s3_bucket" "website_files" {
   force_destroy = true
 }
 
+# Disable Block Public Access settings using aws_s3_bucket_public_access_block
+resource "aws_s3_bucket_public_access_block" "website_files" {
+  bucket                  = aws_s3_bucket.website_files.id
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
+}
+
 resource "aws_s3_bucket_ownership_controls" "website_files" {
   depends_on = [aws_s3_bucket.website_files]
   bucket     = aws_s3_bucket.website_files.id
