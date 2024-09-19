@@ -66,14 +66,6 @@ resource "aws_s3_bucket" "website_files" {
   force_destroy = true
 }
 
-resource "aws_s3_object" "index_file" {
-  bucket       = aws_s3_bucket.website_files.bucket
-  key          = basename(var.index_file_path)
-  source       = var.index_file_path
-  content_type = "text/html"
-  etag         = filemd5(var.index_file_path)
-}
-
 resource "aws_s3_bucket_ownership_controls" "website_files" {
   depends_on = [aws_s3_bucket.website_files]
   bucket     = aws_s3_bucket.website_files.id
@@ -97,17 +89,12 @@ resource "aws_cloudfront_origin_access_control" "oac" {
 
 resource "aws_cloudfront_distribution" "this" {
   enabled = true
+
+  # Origin for the S3 bucket containing website files
   origin {
     domain_name              = aws_s3_bucket.website_files.bucket_regional_domain_name
     origin_id                = aws_s3_bucket.website_files.bucket_regional_domain_name
     origin_access_control_id = aws_cloudfront_origin_access_control.oac.id
-  }
-
-  custom_error_response {
-    error_caching_min_ttl = 10
-    error_code            = 403
-    response_code         = 200
-    response_page_path    = "/${basename(var.index_file_path)}"
   }
 
   origin {
@@ -129,6 +116,7 @@ resource "aws_cloudfront_distribution" "this" {
     }
   }
 
+  # Default Cache Behavior - Serve from root of the S3 bucket
   default_cache_behavior {
     target_origin_id       = aws_s3_bucket.website_files.bucket_regional_domain_name
     viewer_protocol_policy = "redirect-to-https"
@@ -149,6 +137,22 @@ resource "aws_cloudfront_distribution" "this" {
     compress    = true
   }
 
+  default_root_object = local.default_root_object
+
+  custom_error_response {
+    error_caching_min_ttl = 10
+    error_code            = 403
+    response_code         = 200
+    response_page_path    = local.default_root_object
+  }
+
+  custom_error_response {
+    error_code            = 404
+    response_code         = 404
+    response_page_path    = local.default_root_object
+    error_caching_min_ttl = 300
+  }
+
   restrictions {
     geo_restriction {
       restriction_type = "none"
@@ -159,13 +163,7 @@ resource "aws_cloudfront_distribution" "this" {
     cloudfront_default_certificate = true
   }
 
-  custom_error_response {
-    error_code            = 404
-    response_code         = 404
-    response_page_path    = "/404.html"
-    error_caching_min_ttl = 300
-  }
-
+  # Ordered cache behavior for API requests
   ordered_cache_behavior {
     path_pattern           = "/api/*"
     target_origin_id       = local.api_domain
