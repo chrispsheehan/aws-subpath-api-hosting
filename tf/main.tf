@@ -86,13 +86,30 @@ resource "aws_cloudfront_origin_access_control" "oac" {
 resource "aws_cloudfront_distribution" "this" {
   enabled = true
 
-  # Origin for the S3 bucket containing website files
+  # Origin for the root of the S3 bucket
   origin {
     domain_name              = aws_s3_bucket.website_files.bucket_regional_domain_name
-    origin_id                = aws_s3_bucket.website_files.bucket_regional_domain_name
+    origin_id                = "root-origin"
     origin_access_control_id = aws_cloudfront_origin_access_control.oac.id
   }
 
+  # Origin for /client1
+  origin {
+    domain_name              = aws_s3_bucket.website_files.bucket_regional_domain_name
+    origin_id                = "client1-origin"
+    origin_access_control_id = aws_cloudfront_origin_access_control.oac.id
+    origin_path              = "/client1"
+  }
+
+  # Origin for /client2
+  origin {
+    domain_name              = aws_s3_bucket.website_files.bucket_regional_domain_name
+    origin_id                = "client2-origin"
+    origin_access_control_id = aws_cloudfront_origin_access_control.oac.id
+    origin_path              = "/client2"
+  }
+
+  # Origin for the API Gateway
   origin {
     domain_name = replace(
       replace(aws_apigatewayv2_stage.this.invoke_url, "https://", ""),
@@ -114,7 +131,7 @@ resource "aws_cloudfront_distribution" "this" {
 
   # Default Cache Behavior - Serve from root of the S3 bucket
   default_cache_behavior {
-    target_origin_id       = aws_s3_bucket.website_files.bucket_regional_domain_name
+    target_origin_id       = "root-origin"
     viewer_protocol_policy = "redirect-to-https"
 
     allowed_methods = ["GET", "HEAD", "OPTIONS"]
@@ -135,6 +152,7 @@ resource "aws_cloudfront_distribution" "this" {
 
   default_root_object = local.default_root_object
 
+  # Custom error response for access denied
   custom_error_response {
     error_caching_min_ttl = 10
     error_code            = 403
@@ -142,6 +160,7 @@ resource "aws_cloudfront_distribution" "this" {
     response_page_path    = local.default_root_object
   }
 
+  # Custom error response for not found
   custom_error_response {
     error_code            = 404
     response_code         = 404
@@ -149,14 +168,48 @@ resource "aws_cloudfront_distribution" "this" {
     error_caching_min_ttl = 300
   }
 
-  restrictions {
-    geo_restriction {
-      restriction_type = "none"
+  # Cache behavior for /client1
+  ordered_cache_behavior {
+    path_pattern           = "/client1*"
+    target_origin_id       = "client1-origin"
+    viewer_protocol_policy = "redirect-to-https"
+
+    allowed_methods = ["GET", "HEAD", "OPTIONS"]
+    cached_methods  = ["GET", "HEAD"]
+
+    forwarded_values {
+      query_string = false
+      cookies {
+        forward = "none"
+      }
     }
+
+    min_ttl     = 0
+    default_ttl = 3600
+    max_ttl     = 86400
+    compress    = true
   }
 
-  viewer_certificate {
-    cloudfront_default_certificate = true
+  # Cache behavior for /client2
+  ordered_cache_behavior {
+    path_pattern           = "/client2*"
+    target_origin_id       = "client2-origin"
+    viewer_protocol_policy = "redirect-to-https"
+
+    allowed_methods = ["GET", "HEAD", "OPTIONS"]
+    cached_methods  = ["GET", "HEAD"]
+
+    forwarded_values {
+      query_string = false
+      cookies {
+        forward = "none"
+      }
+    }
+
+    min_ttl     = 0
+    default_ttl = 3600
+    max_ttl     = 86400
+    compress    = true
   }
 
   # Ordered cache behavior for API requests
@@ -180,4 +233,15 @@ resource "aws_cloudfront_distribution" "this" {
     max_ttl     = 86400
     compress    = true
   }
+
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+
+  viewer_certificate {
+    cloudfront_default_certificate = true
+  }
 }
+
