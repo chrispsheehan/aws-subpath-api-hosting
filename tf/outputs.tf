@@ -15,5 +15,5 @@ output "function_name" {
 }
 
 output "static_bucket_name" {
-  value = aws_s3_bucket.website_files
+  value = aws_s3_bucket.website_files.bucket
 }
