@@ -163,7 +163,7 @@ resource "aws_cloudfront_distribution" "this" {
 
   # Cache behavior for /client1
   ordered_cache_behavior {
-    path_pattern           = "/client1*"
+    path_pattern           = "/client1/"
     target_origin_id       = "client1-origin"
     viewer_protocol_policy = "redirect-to-https"
 
@@ -188,8 +188,6 @@ resource "aws_cloudfront_distribution" "this" {
     path_pattern             = "/api/*"
     target_origin_id         = local.api_domain
     viewer_protocol_policy   = "redirect-to-https"
-    cache_policy_id          = aws_cloudfront_cache_policy.client.id
-    origin_request_policy_id = aws_cloudfront_origin_request_policy.client.id
 
     allowed_methods = ["GET", "HEAD", "OPTIONS"]
     cached_methods  = ["GET", "HEAD"]
@@ -215,45 +213,5 @@ resource "aws_cloudfront_distribution" "this" {
 
   viewer_certificate {
     cloudfront_default_certificate = true
-  }
-}
-
-resource "aws_cloudfront_cache_policy" "client" {
-  name = "client"
-
-  default_ttl = 0
-  max_ttl     = 0
-  min_ttl     = 0
-
-  parameters_in_cache_key_and_forwarded_to_origin {
-    cookies_config {
-      cookie_behavior = "none"
-    }
-
-    headers_config {
-      header_behavior = "none"
-    }
-    query_strings_config {
-      query_string_behavior = "none"
-    }
-  }
-}
-
-resource "aws_cloudfront_origin_request_policy" "client" {
-  name = "client"
-
-  cookies_config {
-    cookie_behavior = "none"
-  }
-
-  headers_config {
-    header_behavior = "whitelist"
-    headers {
-      items = ["Accept-Charset", "Accept", "User-Agent", "Referer"]
-    }
-  }
-
-  query_strings_config {
-    query_string_behavior = "all"
   }
 }
