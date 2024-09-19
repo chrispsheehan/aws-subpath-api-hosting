@@ -2,6 +2,10 @@ resource "aws_s3_bucket" "lambda_bucket" {
   bucket = local.lambda_bucket
 }
 
+resource "aws_s3_bucket" "static_bucket" {
+  bucket = "${local.lambda_name}-static"
+}
+
 resource "aws_s3_object" "lambda_zip" {
   bucket        = aws_s3_bucket.lambda_bucket.id
   key           = basename(var.lambda_zip_path)

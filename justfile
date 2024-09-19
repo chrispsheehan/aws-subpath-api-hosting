@@ -4,7 +4,7 @@ zip-path:
 
 index-path:
     #!/usr/bin/env bash
-    echo {{justfile_directory()}}/index.html
+    echo {{justfile_directory()}}/static/index.html
 
 build:
     #!/usr/bin/env bash

@@ -36,6 +36,14 @@ jobs:
           echo "DISTRIBUTION_ID=$DISTRIBUTION_ID"
           echo "DISTRIBUTION_ID=$DISTRIBUTION_ID" >> $GITHUB_ENV
   
+          STATIC_BUCKET_NAME=$(terraform output -raw static_bucket_name)
+          echo "STATIC_BUCKET_NAME=$STATIC_BUCKET_NAME"
+          echo "STATIC_BUCKET_NAME=$STATIC_BUCKET_NAME" >> $GITHUB_ENV
+
+      - name: s3-sync
+        shell: bash
+        run: aws s3 sync ${GITHUB_WORKSPACE}/static s3://$STATIC_BUCKET_NAME/ --delete
+  
       - name: web-refresh
         shell: bash
         run: |
