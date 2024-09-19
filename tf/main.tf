@@ -154,18 +154,18 @@ resource "aws_cloudfront_distribution" "this" {
 
   # Custom error response for access denied
   custom_error_response {
-    error_caching_min_ttl = 10
+    error_caching_min_ttl = 0
     error_code            = 403
     response_code         = 200
-    response_page_path    = local.default_root_object
+    response_page_path    = "/403.html"
   }
 
   # Custom error response for not found
   custom_error_response {
     error_code            = 404
     response_code         = 404
-    response_page_path    = local.default_root_object
-    error_caching_min_ttl = 300
+    response_page_path    = "/404.html"
+    error_caching_min_ttl = 0
   }
 
   # Cache behavior for /client1
