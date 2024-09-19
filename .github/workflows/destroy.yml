@@ -13,7 +13,7 @@ env:
   aws_role: ${{ vars.AWS_ROLE }}
 
 jobs:
-  deploy:
+  destroy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
