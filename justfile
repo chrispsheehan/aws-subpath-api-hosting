@@ -6,6 +6,11 @@ index-path:
     #!/usr/bin/env bash
     echo {{justfile_directory()}}/static/index.html
 
+format:
+    #!/usr/bin/env bash
+    cd tf
+    terraform fmt --recursive
+
 build:
     #!/usr/bin/env bash
     zip_path=$(just zip-path)
