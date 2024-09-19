@@ -161,27 +161,28 @@ resource "aws_cloudfront_distribution" "this" {
     error_caching_min_ttl = 0
   }
 
-  # # Cache behavior for /client1
-  # ordered_cache_behavior {
-  #   path_pattern           = "/client1/"
-  #   target_origin_id       = "client1-origin"
-  #   viewer_protocol_policy = "redirect-to-https"
+  # Cache behavior for /client1
+  ordered_cache_behavior {
+    path_pattern           = "/client1/"
+    # target_origin_id       = "client1-origin"
+    target_origin_id = "root-origin"
+    viewer_protocol_policy = "redirect-to-https"
 
-  #   allowed_methods = ["GET", "HEAD", "OPTIONS"]
-  #   cached_methods  = ["GET", "HEAD"]
+    allowed_methods = ["GET", "HEAD", "OPTIONS"]
+    cached_methods  = ["GET", "HEAD"]
 
-  #   forwarded_values {
-  #     query_string = false
-  #     cookies {
-  #       forward = "none"
-  #     }
-  #   }
+    forwarded_values {
+      query_string = false
+      cookies {
+        forward = "none"
+      }
+    }
 
-  #   min_ttl     = 0
-  #   default_ttl = 3600
-  #   max_ttl     = 86400
-  #   compress    = true
-  # }
+    min_ttl     = 0
+    default_ttl = 3600
+    max_ttl     = 86400
+    compress    = true
+  }
 
   # Ordered cache behavior for API requests
   ordered_cache_behavior {
