@@ -98,7 +98,7 @@ resource "aws_cloudfront_distribution" "this" {
     domain_name              = aws_s3_bucket.website_files.bucket_regional_domain_name
     origin_id                = "client1-origin"
     origin_access_control_id = aws_cloudfront_origin_access_control.oac.id
-    origin_path              = "/client1"
+    origin_path              = "/client1/index.html"
   }
 
   # Origin for /client2
@@ -106,7 +106,7 @@ resource "aws_cloudfront_distribution" "this" {
     domain_name              = aws_s3_bucket.website_files.bucket_regional_domain_name
     origin_id                = "client2-origin"
     origin_access_control_id = aws_cloudfront_origin_access_control.oac.id
-    origin_path              = "/client2"
+    origin_path              = "/client2/index.html"
   }
 
   # Origin for the API Gateway
