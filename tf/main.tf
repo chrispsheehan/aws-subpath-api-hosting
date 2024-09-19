@@ -170,7 +170,7 @@ resource "aws_cloudfront_distribution" "this" {
 
   # Cache behavior for /client1
   ordered_cache_behavior {
-    path_pattern           = "/client1*"
+    path_pattern           = "/client1/*"
     target_origin_id       = "client1-origin"
     viewer_protocol_policy = "redirect-to-https"
 
@@ -192,7 +192,7 @@ resource "aws_cloudfront_distribution" "this" {
 
   # Cache behavior for /client2
   ordered_cache_behavior {
-    path_pattern           = "/client2*"
+    path_pattern           = "/client2/*"
     target_origin_id       = "client2-origin"
     viewer_protocol_policy = "redirect-to-https"
 
