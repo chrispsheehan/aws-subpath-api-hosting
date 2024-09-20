@@ -12,21 +12,16 @@ data "aws_iam_policy_document" "assume_role" {
 }
 
 data "aws_iam_policy_document" "website_files_policy" {
-
-  version = "2012-10-17"
   statement {
-    actions   = ["s3:GetObject"]
-    resources = ["${aws_s3_bucket.website_files.arn}/*"]
+    sid     = "AllowPublic"
+    effect  = "Allow"
+    actions = ["s3:GetObject"]
 
     principals {
-      type        = "Service"
-      identifiers = ["cloudfront.amazonaws.com"]
+      type        = "*"
+      identifiers = ["*"]
     }
 
-    condition {
-      test     = "StringLike"
-      variable = "AWS:SourceArn"
-      values   = [aws_cloudfront_distribution.this.arn]
-    }
+    resources = ["${aws_s3_bucket.website_files.arn}/*"]
   }
 }

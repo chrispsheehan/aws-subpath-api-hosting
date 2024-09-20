@@ -62,14 +62,6 @@ resource "aws_s3_bucket" "website_files" {
   force_destroy = true
 }
 
-resource "aws_s3_object" "index_file" {
-  bucket       = aws_s3_bucket.website_files.bucket
-  key          = basename(var.index_file_path)
-  source       = var.index_file_path
-  content_type = "text/html"
-  etag         = filemd5(var.index_file_path)
-}
-
 resource "aws_s3_bucket_ownership_controls" "website_files" {
   depends_on = [aws_s3_bucket.website_files]
   bucket     = aws_s3_bucket.website_files.id
@@ -78,9 +70,27 @@ resource "aws_s3_bucket_ownership_controls" "website_files" {
   }
 }
 
-resource "aws_s3_bucket_policy" "website_files_policy" {
+resource "aws_s3_bucket_public_access_block" "this" {
   bucket = aws_s3_bucket.website_files.id
-  policy = data.aws_iam_policy_document.website_files_policy.json
+
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
+}
+
+resource "aws_s3_bucket_policy" "website_files_policy" {
+  depends_on = [aws_s3_bucket.website_files, aws_s3_bucket_public_access_block.this]
+  bucket     = aws_s3_bucket.website_files.id
+  policy     = data.aws_iam_policy_document.website_files_policy.json
+}
+
+resource "aws_s3_bucket_website_configuration" "this" {
+  bucket = aws_s3_bucket.website_files.bucket
+
+  index_document {
+    suffix = local.default_root_object
+  }
 }
 
 resource "aws_cloudfront_origin_access_control" "oac" {
@@ -93,19 +103,20 @@ resource "aws_cloudfront_origin_access_control" "oac" {
 
 resource "aws_cloudfront_distribution" "this" {
   enabled = true
+
   origin {
-    domain_name              = aws_s3_bucket.website_files.bucket_regional_domain_name
-    origin_id                = aws_s3_bucket.website_files.bucket_regional_domain_name
-    origin_access_control_id = aws_cloudfront_origin_access_control.oac.id
+    domain_name = aws_s3_bucket_website_configuration.this.website_endpoint
+    origin_id   = local.s3_origin_id
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "http-only"
+      origin_ssl_protocols   = ["SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2"]
+    }
   }
 
-  custom_error_response {
-    error_caching_min_ttl = 10
-    error_code            = 403
-    response_code         = 200
-    response_page_path    = "/${basename(var.index_file_path)}"
-  }
 
+  # Origin for the API Gateway
   origin {
     domain_name = replace(
       replace(aws_apigatewayv2_stage.this.invoke_url, "https://", ""),
@@ -125,8 +136,48 @@ resource "aws_cloudfront_distribution" "this" {
     }
   }
 
+  # Default Cache Behavior - Serve from root of the S3 bucket
   default_cache_behavior {
-    target_origin_id       = aws_s3_bucket.website_files.bucket_regional_domain_name
+    target_origin_id       = local.s3_origin_id
+    viewer_protocol_policy = "redirect-to-https"
+
+    allowed_methods = ["GET", "HEAD", "OPTIONS"]
+    cached_methods  = ["GET", "HEAD"]
+
+    forwarded_values {
+      query_string = true
+      cookies {
+        forward = "none"
+      }
+    }
+
+    min_ttl     = 0
+    default_ttl = 3600
+    max_ttl     = 86400
+    compress    = true
+  }
+
+  # Custom error response for access denied
+  custom_error_response {
+    error_caching_min_ttl = 0
+    error_code            = 403
+    response_code         = 200
+    response_page_path    = "/403.html"
+    # response_page_path    = "/client1/index.html"
+  }
+
+  # Custom error response for not found
+  custom_error_response {
+    error_code            = 404
+    response_code         = 404
+    response_page_path    = "/404.html"
+    error_caching_min_ttl = 0
+  }
+
+  # Ordered cache behavior for API requests
+  ordered_cache_behavior {
+    path_pattern           = "/api/*"
+    target_origin_id       = local.api_domain
     viewer_protocol_policy = "redirect-to-https"
 
     allowed_methods = ["GET", "HEAD", "OPTIONS"]
@@ -153,33 +204,5 @@ resource "aws_cloudfront_distribution" "this" {
 
   viewer_certificate {
     cloudfront_default_certificate = true
-  }
-
-  custom_error_response {
-    error_code            = 404
-    response_code         = 404
-    response_page_path    = "/404.html"
-    error_caching_min_ttl = 300
-  }
-
-  ordered_cache_behavior {
-    path_pattern           = "/api/*"
-    target_origin_id       = local.api_domain
-    viewer_protocol_policy = "redirect-to-https"
-
-    allowed_methods = ["GET", "HEAD", "OPTIONS"]
-    cached_methods  = ["GET", "HEAD"]
-
-    forwarded_values {
-      query_string = true
-      cookies {
-        forward = "none"
-      }
-    }
-
-    min_ttl     = 0
-    default_ttl = 3600
-    max_ttl     = 86400
-    compress    = true
   }
 }

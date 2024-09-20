@@ -13,3 +13,7 @@ output "api_gateway_url" {
 output "function_name" {
   value = aws_lambda_function.lambda.function_name
 }
+
+output "static_bucket_name" {
+  value = aws_s3_bucket.website_files.bucket
+}

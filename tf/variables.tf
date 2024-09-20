@@ -20,8 +20,3 @@ variable "lambda_zip_path" {
   type        = string
   description = "Lambda code (zipped) to be deployed"
 }
-
-variable "index_file_path" {
-  type        = string
-  description = "Index.html file to be deployed"
-}

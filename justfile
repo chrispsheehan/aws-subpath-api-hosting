@@ -4,7 +4,12 @@ zip-path:
 
 index-path:
     #!/usr/bin/env bash
-    echo {{justfile_directory()}}/index.html
+    echo {{justfile_directory()}}/static/index.html
+
+format:
+    #!/usr/bin/env bash
+    cd tf
+    terraform fmt --recursive
 
 build:
     #!/usr/bin/env bash
@@ -18,7 +23,7 @@ plan:
     #!/usr/bin/env bash
     cd tf
     terraform init
-    terraform plan -var lambda_zip_path=$(just zip-path) -var index_file_path=$(just index-path)
+    terraform plan -var lambda_zip_path=$(just zip-path)
 
 deploy:
     #!/usr/bin/env bash
@@ -26,11 +31,11 @@ deploy:
     just build
     cd tf
     terraform init
-    terraform apply --auto-approve -var lambda_zip_path=$(just zip-path) -var index_file_path=$(just index-path)
+    terraform apply --auto-approve -var lambda_zip_path=$(just zip-path)
 
 destroy:
     #!/usr/bin/env bash
     set -euo pipefail
     cd tf
     terraform init
-    terraform destroy --auto-approve -var lambda_zip_path=$(just zip-path) -var index_file_path=$(just index-path)
+    terraform destroy --auto-approve -var lambda_zip_path=$(just zip-path)
