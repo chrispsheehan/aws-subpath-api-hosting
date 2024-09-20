@@ -30,3 +30,22 @@ data "aws_iam_policy_document" "website_files_policy" {
     }
   }
 }
+
+
+data "aws_iam_policy_document" "website_files_policy" {
+  statement {
+    actions   = ["s3:GetObject"]
+    resources = ["${aws_s3_bucket.website_files.arn}/*"]
+
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity ${aws_cloudfront_origin_access_control.oac.id}"]
+    }
+
+    # condition {
+    #   test     = "StringEquals"
+    #   variable = "AWS:Referer"
+    #   values   = ["example.com"]
+    # }
+  }
+}

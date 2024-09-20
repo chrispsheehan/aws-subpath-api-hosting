@@ -86,20 +86,12 @@ resource "aws_cloudfront_origin_access_control" "oac" {
 resource "aws_cloudfront_distribution" "this" {
   enabled = true
 
-  # Origin for the root of the S3 bucket
   origin {
     domain_name              = aws_s3_bucket.website_files.bucket_regional_domain_name
     origin_id                = "root-origin"
     origin_access_control_id = aws_cloudfront_origin_access_control.oac.id
   }
 
-  # # Origin for /client1
-  # origin {
-  #   domain_name              = aws_s3_bucket.website_files.bucket_regional_domain_name
-  #   origin_id                = "client1-origin"
-  #   origin_access_control_id = aws_cloudfront_origin_access_control.oac.id
-  #   origin_path              = "/client1"
-  # }
 
   # Origin for the API Gateway
   origin {
@@ -120,6 +112,8 @@ resource "aws_cloudfront_distribution" "this" {
       origin_read_timeout      = 30
     }
   }
+
+  default_root_object = local.default_root_object
 
   # Default Cache Behavior - Serve from root of the S3 bucket
   default_cache_behavior {
@@ -142,8 +136,6 @@ resource "aws_cloudfront_distribution" "this" {
     compress    = true
   }
 
-  default_root_object = local.default_root_object
-
   # Custom error response for access denied
   custom_error_response {
     error_caching_min_ttl = 0
@@ -159,29 +151,6 @@ resource "aws_cloudfront_distribution" "this" {
     response_code         = 404
     response_page_path    = "/404.html"
     error_caching_min_ttl = 0
-  }
-
-  # Cache behavior for /client1
-  ordered_cache_behavior {
-    path_pattern           = "/client1*"
-    # target_origin_id       = "client1-origin"
-    target_origin_id = "root-origin"
-    viewer_protocol_policy = "redirect-to-https"
-
-    allowed_methods = ["GET", "HEAD", "OPTIONS"]
-    cached_methods  = ["GET", "HEAD"]
-
-    forwarded_values {
-      query_string = false
-      cookies {
-        forward = "none"
-      }
-    }
-
-    min_ttl     = 0
-    default_ttl = 3600
-    max_ttl     = 86400
-    compress    = true
   }
 
   # Ordered cache behavior for API requests
