@@ -87,7 +87,7 @@ resource "aws_cloudfront_distribution" "this" {
   enabled = true
 
   origin {
-    domain_name              = aws_s3_bucket.website_files.bucket_regional_domain_name
+    domain_name              = aws_s3_bucket.website_files.website_endpoint
     origin_id                = "root-origin"
     origin_access_control_id = aws_cloudfront_origin_access_control.oac.id
   }
