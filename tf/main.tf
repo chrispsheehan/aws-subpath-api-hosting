@@ -70,9 +70,27 @@ resource "aws_s3_bucket_ownership_controls" "website_files" {
   }
 }
 
-resource "aws_s3_bucket_policy" "website_files_policy" {
+resource "aws_s3_bucket_public_access_block" "this" {
   bucket = aws_s3_bucket.website_files.id
-  policy = data.aws_iam_policy_document.website_files_policy.json
+
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
+}
+
+resource "aws_s3_bucket_policy" "website_files_policy" {
+  depends_on = [aws_s3_bucket.website_files, aws_s3_bucket_public_access_block.this]
+  bucket     = aws_s3_bucket.website_files.id
+  policy     = data.aws_iam_policy_document.website_files_policy.json
+}
+
+resource "aws_s3_bucket_website_configuration" "this" {
+  bucket = aws_s3_bucket.website_files.bucket
+
+  index_document {
+    suffix = local.default_root_object
+  }
 }
 
 resource "aws_cloudfront_origin_access_control" "oac" {
@@ -87,9 +105,14 @@ resource "aws_cloudfront_distribution" "this" {
   enabled = true
 
   origin {
-    domain_name              = aws_s3_bucket.website_files.website_endpoint
-    origin_id                = "root-origin"
-    origin_access_control_id = aws_cloudfront_origin_access_control.oac.id
+    domain_name = aws_s3_bucket_website_configuration.this.website_endpoint
+    origin_id   = local.s3_origin_id
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "http-only"
+      origin_ssl_protocols   = ["SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2"]
+    }
   }
 
 
@@ -113,11 +136,9 @@ resource "aws_cloudfront_distribution" "this" {
     }
   }
 
-  default_root_object = local.default_root_object
-
   # Default Cache Behavior - Serve from root of the S3 bucket
   default_cache_behavior {
-    target_origin_id       = "root-origin"
+    target_origin_id       = local.s3_origin_id
     viewer_protocol_policy = "redirect-to-https"
 
     allowed_methods = ["GET", "HEAD", "OPTIONS"]
@@ -155,9 +176,9 @@ resource "aws_cloudfront_distribution" "this" {
 
   # Ordered cache behavior for API requests
   ordered_cache_behavior {
-    path_pattern             = "/api/*"
-    target_origin_id         = local.api_domain
-    viewer_protocol_policy   = "redirect-to-https"
+    path_pattern           = "/api/*"
+    target_origin_id       = local.api_domain
+    viewer_protocol_policy = "redirect-to-https"
 
     allowed_methods = ["GET", "HEAD", "OPTIONS"]
     cached_methods  = ["GET", "HEAD"]
