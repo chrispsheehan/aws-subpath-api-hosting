@@ -140,7 +140,7 @@ resource "aws_cloudfront_distribution" "this" {
 
     custom_header {
       name  = local.auth_header_name
-      value = aws_ssm_parameter.api_key_ssm.value
+      value = "${aws_ssm_parameter.api_key_ssm.value}"
     }
   }
 
