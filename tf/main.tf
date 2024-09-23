@@ -93,18 +93,6 @@ resource "aws_s3_bucket_website_configuration" "this" {
   }
 }
 
-resource "random_string" "api_key" {
-  length  = 32
-  special = false
-}
-
-resource "aws_ssm_parameter" "api_key_ssm" {
-  name        = "/${local.s3_origin_id}/api_key"
-  description = "Auth header key for ${local.s3_origin_id}"
-  type        = "SecureString"
-  value       = random_string.api_key.result
-}
-
 resource "aws_cloudfront_distribution" "this" {
   enabled = true
 
@@ -136,11 +124,6 @@ resource "aws_cloudfront_distribution" "this" {
       origin_ssl_protocols     = ["TLSv1.2"]
       origin_keepalive_timeout = 5
       origin_read_timeout      = 30
-    }
-
-    custom_header {
-      name  = local.auth_header_name
-      value = "${aws_ssm_parameter.api_key_ssm.value}"
     }
   }
 
