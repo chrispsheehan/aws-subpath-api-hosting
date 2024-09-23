@@ -92,37 +92,19 @@ resource "aws_s3_bucket_website_configuration" "this" {
     suffix = local.default_root_object
   }
 }
-
-resource "aws_cloudfront_origin_access_control" "oac" {
-  name                              = "oac-${local.domain}"
-  description                       = "OAC Policy for ${local.domain}"
-  origin_access_control_origin_type = "s3"
-  signing_behavior                  = "always"
-  signing_protocol                  = "sigv4"
-}
-
 resource "aws_cloudfront_distribution" "this" {
   enabled = true
 
   origin {
-    # domain_name = aws_s3_bucket_website_configuration.this.website_endpoint
-    # origin_id   = local.s3_origin_id
-    # custom_origin_config {
-    #   http_port              = 80
-    #   https_port             = 443
-    #   origin_protocol_policy = "http-only"
-    #   origin_ssl_protocols   = ["SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2"]
-    # }
-    domain_name = aws_s3_bucket.website_files.bucket_regional_domain_name  # Use the regional domain name
+    domain_name = aws_s3_bucket_website_configuration.this.website_endpoint
     origin_id   = local.s3_origin_id
     custom_origin_config {
       http_port              = 80
       https_port             = 443
-      origin_protocol_policy = "https-only"  # Enforce HTTPS
-      origin_ssl_protocols   = ["TLSv1.2"]   # Use modern TLS protocols
+      origin_protocol_policy = "http-only"
+      origin_ssl_protocols   = ["TLSv1.2"]
     }
-    }
-
+  }
 
   # Origin for the API Gateway
   origin {
