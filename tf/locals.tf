@@ -6,4 +6,5 @@ locals {
   api_domain          = "${local.lambda_name}-api"
   default_root_object = "index.html"
   s3_origin_id        = "s3-root-origin"
+  auth_header_name    = "X-Custom-Auth-Header"
 }
