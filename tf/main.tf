@@ -28,7 +28,7 @@ module "api_beta" {
 }
 
 resource "aws_s3_bucket" "website_files" {
-  bucket        = local.domain
+  bucket        = local.static_web_files_bucket
   force_destroy = true
 }
 
@@ -63,6 +63,21 @@ resource "aws_s3_bucket_website_configuration" "this" {
   }
 }
 
+resource "aws_cloudfront_function" "route_by_header" {
+  name    = "${var.function_stage}-api-target-selector"
+  runtime = "cloudfront-js-1.0"
+  publish = true
+
+  code = templatefile("${path.module}/functions/api-target-selector.js.tpl", {
+    toggle_header     = local.api_target_header_name
+    beta_header_value = local.beta_api_name
+    beta_path_prefix  = local.beta_api_path
+    alpha_path_prefix = local.alpha_api_path
+  })
+}
+
+
+
 resource "aws_cloudfront_distribution" "this" {
   enabled = true
 
@@ -94,6 +109,21 @@ resource "aws_cloudfront_distribution" "this" {
   }
 
   origin {
+    domain_name = module.api_alpha.api_domain_name
+    origin_id   = local.alpha_api_name
+    origin_path = "/${module.api_alpha.api_stage}"
+
+    custom_origin_config {
+      http_port                = 80
+      https_port               = 443
+      origin_protocol_policy   = "https-only"
+      origin_ssl_protocols     = ["TLSv1.2"]
+      origin_keepalive_timeout = 5
+      origin_read_timeout      = 5
+    }
+  }
+
+  origin {
     domain_name = module.api_beta.api_domain_name
     origin_id   = local.beta_api_name
     origin_path = "/${module.api_beta.api_stage}"
@@ -104,7 +134,7 @@ resource "aws_cloudfront_distribution" "this" {
       origin_protocol_policy   = "https-only"
       origin_ssl_protocols     = ["TLSv1.2"]
       origin_keepalive_timeout = 5
-      origin_read_timeout      = 30
+      origin_read_timeout      = 5
     }
   }
 
@@ -121,6 +151,12 @@ resource "aws_cloudfront_distribution" "this" {
       cookies {
         forward = "none"
       }
+    }
+
+  
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.route_by_header.arn
     }
 
     min_ttl     = 0
@@ -148,8 +184,29 @@ resource "aws_cloudfront_distribution" "this" {
 
   # Ordered cache behavior for API requests
   ordered_cache_behavior {
-    path_pattern           = "/api/*"
-    target_origin_id       = local.api_domain
+    path_pattern           = "/${local.alpha_api_path}/*"
+    target_origin_id       = local.alpha_api_name
+    viewer_protocol_policy = "redirect-to-https"
+
+    allowed_methods = ["GET", "HEAD", "OPTIONS"]
+    cached_methods  = ["GET", "HEAD"]
+
+    forwarded_values {
+      query_string = true
+      cookies {
+        forward = "none"
+      }
+    }
+
+    min_ttl     = 0
+    default_ttl = 0
+    max_ttl     = 0
+    compress    = true
+  }
+
+  ordered_cache_behavior {
+    path_pattern           = "/${local.beta_api_path}/*"
+    target_origin_id       = local.beta_api_name
     viewer_protocol_policy = "redirect-to-https"
 
     allowed_methods = ["GET", "HEAD", "OPTIONS"]
