@@ -1,5 +1,5 @@
 resource "aws_s3_bucket" "lambda_bucket" {
-  bucket = local.lambda_bucket
+  bucket = local.lambda_code_bucket
 }
 
 resource "aws_s3_object" "lambda_zip" {
@@ -9,52 +9,22 @@ resource "aws_s3_object" "lambda_zip" {
   force_destroy = true
 }
 
-resource "aws_iam_role" "iam_for_lambda" {
-  name               = "${local.lambda_name}-iam"
-  assume_role_policy = data.aws_iam_policy_document.assume_role.json
+module "api_alpha" {
+  source = "./api"
+
+  api_name              = local.alpha_api_name
+  api_stage             = var.function_stage
+  lambda_code_bucket    = aws_s3_bucket.lambda_bucket.bucket
+  lambda_code_s3_object = aws_s3_object.lambda_zip.key
 }
 
-resource "aws_lambda_function" "lambda" {
-  depends_on = [aws_s3_object.lambda_zip]
+module "api_beta" {
+  source = "./api"
 
-  function_name = local.lambda_name
-  role          = aws_iam_role.iam_for_lambda.arn
-  handler       = "app.handler"
-  runtime       = local.lambda_runtime
-
-  s3_bucket = aws_s3_bucket.lambda_bucket.bucket
-  s3_key    = aws_s3_object.lambda_zip.key
-}
-
-resource "aws_lambda_permission" "this" {
-  statement_id  = "${local.lambda_name}-AllowAPIGatewayInvoke"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.lambda.function_name
-  principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_apigatewayv2_stage.this.execution_arn}/*"
-}
-
-resource "aws_apigatewayv2_api" "this" {
-  name          = "${local.lambda_name}-APIGateway"
-  protocol_type = "HTTP"
-}
-
-resource "aws_apigatewayv2_integration" "this" {
-  api_id           = aws_apigatewayv2_api.this.id
-  integration_type = "AWS_PROXY"
-  integration_uri  = aws_lambda_function.lambda.invoke_arn
-}
-
-resource "aws_apigatewayv2_route" "this" {
-  api_id    = aws_apigatewayv2_api.this.id
-  route_key = "ANY /{proxy+}"
-  target    = "integrations/${aws_apigatewayv2_integration.this.id}"
-}
-
-resource "aws_apigatewayv2_stage" "this" {
-  api_id      = aws_apigatewayv2_api.this.id
-  name        = var.function_stage
-  auto_deploy = true
+  api_name              = local.beta_api_name
+  api_stage             = var.function_stage
+  lambda_code_bucket    = aws_s3_bucket.lambda_bucket.bucket
+  lambda_code_s3_object = aws_s3_object.lambda_zip.key
 }
 
 resource "aws_s3_bucket" "website_files" {
@@ -107,15 +77,26 @@ resource "aws_cloudfront_distribution" "this" {
     }
   }
 
-  # Origin for the API Gateway
+  # Origin for the Alpha API Gateway
   origin {
-    domain_name = replace(
-      replace(aws_apigatewayv2_stage.this.invoke_url, "https://", ""),
-      "/${aws_apigatewayv2_stage.this.name}",
-      ""
-    )
-    origin_id   = local.api_domain
-    origin_path = "/${aws_apigatewayv2_stage.this.name}"
+    domain_name = module.api_alpha.api_domain_name
+    origin_id   = local.alpha_api_name
+    origin_path = "/${module.api_alpha.api_stage}"
+
+    custom_origin_config {
+      http_port                = 80
+      https_port               = 443
+      origin_protocol_policy   = "https-only"
+      origin_ssl_protocols     = ["TLSv1.2"]
+      origin_keepalive_timeout = 5
+      origin_read_timeout      = 30
+    }
+  }
+
+  origin {
+    domain_name = module.api_beta.api_domain_name
+    origin_id   = local.beta_api_name
+    origin_path = "/${module.api_beta.api_stage}"
 
     custom_origin_config {
       http_port                = 80
