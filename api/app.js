@@ -14,7 +14,10 @@ app.use((req, res, next) => {
 
 // Define routes this needs to contain the stage path
 app.get('/hello', (req, res) => {
-  res.status(200).json({msg: "/hello Hello, this is your AWS Lambda function, [mushroom] testy badgers!"});
+  const apiName = process.env.API_NAME || 'unknown-api';
+  res.status(200).json({
+    msg: `/hello from ${apiName}, AWS Lambda is alive!`
+  });
 });
 
 // Catch-all route for unmatched paths
