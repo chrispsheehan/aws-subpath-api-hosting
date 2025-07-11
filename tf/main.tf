@@ -168,7 +168,7 @@ resource "aws_cloudfront_distribution" "this" {
 
   # Ordered cache behavior for API requests
   ordered_cache_behavior {
-    path_pattern           = "/${local.alpha_api_path}/*"
+    path_pattern           = "/${local.api_base_path}/${local.alpha_api_path}/*"
     target_origin_id       = local.alpha_api_name
     viewer_protocol_policy = "redirect-to-https"
 
@@ -189,7 +189,7 @@ resource "aws_cloudfront_distribution" "this" {
   }
 
   ordered_cache_behavior {
-    path_pattern           = "/${local.beta_api_path}/*"
+    path_pattern           = "/${local.api_base_path}/${local.beta_api_path}/*"
     target_origin_id       = local.beta_api_name
     viewer_protocol_policy = "redirect-to-https"
 
