@@ -2,28 +2,25 @@ const express = require('express');
 const awsServerlessExpress = require('aws-serverless-express');
 const app = express();
 
-const basePath = "/dev/api/"
-
-// remove base path from the call url
-app.use((req, res, next) => {
-  if (req.url.startsWith(basePath)) {
-      req.url = req.url.slice(basePath.length);
-  }
-  next();
-});
-
-// Define routes this needs to contain the stage path
+// Route for /hello
 app.get('/hello', (req, res) => {
   const apiName = process.env.API_NAME || 'unknown-api';
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
   res.status(200).json({
-    msg: `/hello from ${apiName}, AWS Lambda is alive!`
+    msg: `/hello from ${apiName}, AWS Lambda is alive!`,
+    ip: ip,
+    path: req.url
   });
 });
 
-// Catch-all route for unmatched paths
+// Catch-all route
 app.use((req, res) => {
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-  res.status(200).json({msg: `Hello, here's your IP: ${ip} req ${req.url}`});
+  res.status(200).json({
+    msg: `Hello from catch-all`,
+    ip: ip,
+    path: req.url
+  });
 });
 
 // Create and export the server
