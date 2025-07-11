@@ -92,7 +92,6 @@ resource "aws_cloudfront_distribution" "ui" {
   origin {
     domain_name = aws_cloudfront_distribution.api_domain.domain_name
     origin_id   = local.alpha_api_name
-    origin_path = "/${local.api_base_path}"
 
     custom_origin_config {
       http_port                = 80
