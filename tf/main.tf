@@ -109,21 +109,6 @@ resource "aws_cloudfront_distribution" "this" {
   }
 
   origin {
-    domain_name = module.api_alpha.api_domain_name
-    origin_id   = local.alpha_api_name
-    origin_path = "/${module.api_alpha.api_stage}"
-
-    custom_origin_config {
-      http_port                = 80
-      https_port               = 443
-      origin_protocol_policy   = "https-only"
-      origin_ssl_protocols     = ["TLSv1.2"]
-      origin_keepalive_timeout = 5
-      origin_read_timeout      = 5
-    }
-  }
-
-  origin {
     domain_name = module.api_beta.api_domain_name
     origin_id   = local.beta_api_name
     origin_path = "/${module.api_beta.api_stage}"
