@@ -12,7 +12,7 @@ resource "aws_s3_object" "lambda_zip" {
 module "api_alpha" {
   source = "./api"
 
-  api_name              = local.alpha_api_name
+  api_name              = "${local.domain}-${local.alpha_api_name}"
   api_stage             = var.function_stage
   lambda_code_bucket    = aws_s3_bucket.lambda_bucket.bucket
   lambda_code_s3_object = aws_s3_object.lambda_zip.key
@@ -21,7 +21,7 @@ module "api_alpha" {
 module "api" {
   source = "./api"
 
-  api_name              = local.api_base_path
+  api_name              = "${local.domain}-${local.api_base_path}"
   api_stage             = var.function_stage
   lambda_code_bucket    = aws_s3_bucket.lambda_bucket.bucket
   lambda_code_s3_object = aws_s3_object.lambda_zip.key
@@ -179,6 +179,26 @@ resource "aws_cloudfront_distribution" "ui" {
   }
 }
 
+resource "aws_cloudfront_function" "api_strip_prefix" {
+  name    = "${var.function_stage}-api-strip-prefix"
+  runtime = "cloudfront-js-1.0"
+  publish = true
+
+  code = templatefile("${path.module}/functions/api-strip-prefix.js.tpl", {
+    prefix_to_strip = local.api_base_path
+  })
+}
+
+resource "aws_cloudfront_function" "api_strip_proxy_prefix" {
+  name    = "${var.function_stage}-api-strip-proxy-prefix"
+  runtime = "cloudfront-js-1.0"
+  publish = true
+
+  code = templatefile("${path.module}/functions/api-strip-prefix.js.tpl", {
+    prefix_to_strip = "${local.api_base_path}/${local.proxy_path_prefix}"
+  })
+}
+
 resource "aws_cloudfront_distribution" "api_domain" {
   enabled = true
 
@@ -220,6 +240,11 @@ resource "aws_cloudfront_distribution" "api_domain" {
     allowed_methods = ["GET", "HEAD", "OPTIONS"]
     cached_methods  = ["GET", "HEAD"]
 
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.api_strip_prefix.arn
+    }
+
     forwarded_values {
       query_string = true
       cookies {
@@ -241,6 +266,11 @@ resource "aws_cloudfront_distribution" "api_domain" {
 
     allowed_methods = ["GET", "HEAD", "OPTIONS"]
     cached_methods  = ["GET", "HEAD"]
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.api_strip_proxy_prefix.arn
+    }
 
     forwarded_values {
       query_string = true

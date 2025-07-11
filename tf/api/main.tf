@@ -14,7 +14,8 @@ resource "aws_lambda_function" "lambda" {
 
   environment {
     variables = {
-      API_NAME = var.api_name
+      API_NAME   = var.api_name
+      STAGE_NAME = var.api_stage
     }
   }
 }
