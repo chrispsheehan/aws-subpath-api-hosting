@@ -2,6 +2,7 @@ locals {
   domain              = "aws-subpath-api-hosting"
   lambda_code_bucket  = "${data.aws_caller_identity.current.account_id}-${local.domain}-lambda-code-bucket"
   static_web_files_bucket = "${data.aws_caller_identity.current.account_id}-${local.domain}"
+  api_base_path      = "api"
   alpha_api_name      = "alpha-api"
   beta_api_name       = "beta-api"
   alpha_api_path      = "alpha"

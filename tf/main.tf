@@ -70,13 +70,12 @@ resource "aws_cloudfront_function" "route_by_header" {
 
   code = templatefile("${path.module}/functions/api-target-selector.js.tpl", {
     toggle_header     = local.api_target_header_name
+    api_base_path     = local.api_base_path
     beta_header_value = local.beta_api_name
     beta_path_prefix  = local.beta_api_path
     alpha_path_prefix = local.alpha_api_path
   })
 }
-
-
 
 resource "aws_cloudfront_distribution" "this" {
   enabled = true
