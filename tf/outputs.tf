@@ -1,5 +1,5 @@
 output "domain_url" {
-  value = "https://${aws_cloudfront_distribution.this.domain_name}"
+  value = "https://${aws_cloudfront_distribution.ui.domain_name}"
 }
 
 output "static_bucket_name" {

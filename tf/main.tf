@@ -18,10 +18,10 @@ module "api_alpha" {
   lambda_code_s3_object = aws_s3_object.lambda_zip.key
 }
 
-module "api_beta" {
+module "api" {
   source = "./api"
 
-  api_name              = local.beta_api_name
+  api_name              = local.api_base_path
   api_stage             = var.function_stage
   lambda_code_bucket    = aws_s3_bucket.lambda_bucket.bucket
   lambda_code_s3_object = aws_s3_object.lambda_zip.key
@@ -63,21 +63,19 @@ resource "aws_s3_bucket_website_configuration" "this" {
   }
 }
 
-resource "aws_cloudfront_function" "route_by_header" {
-  name    = "${var.function_stage}-api-target-selector"
+resource "aws_cloudfront_function" "api_rewrite_to_proxy_path" {
+  name    = "${var.function_stage}-api-rewrite-to-proxy-path"
   runtime = "cloudfront-js-1.0"
   publish = true
 
-  code = templatefile("${path.module}/functions/api-target-selector.js.tpl", {
-    toggle_header     = local.api_target_header_name
+  code = templatefile("${path.module}/functions/api-rewrite-to-proxy-path.js.tpl", {
     api_base_path     = local.api_base_path
-    beta_header_value = local.beta_api_name
-    beta_path_prefix  = local.beta_api_path
-    alpha_path_prefix = local.alpha_api_path
+    proxy_path_prefix = local.proxy_path_prefix
+    is_proxy_mode     = var.is_proxy_mode
   })
 }
 
-resource "aws_cloudfront_distribution" "this" {
+resource "aws_cloudfront_distribution" "ui" {
   enabled = true
 
   origin {
@@ -91,11 +89,10 @@ resource "aws_cloudfront_distribution" "this" {
     }
   }
 
-  # Origin for the Alpha API Gateway
   origin {
-    domain_name = module.api_alpha.api_domain_name
+    domain_name = aws_cloudfront_distribution.api_domain.domain_name
     origin_id   = local.alpha_api_name
-    origin_path = "/${module.api_alpha.api_stage}"
+    origin_path = "/${local.api_base_path}"
 
     custom_origin_config {
       http_port                = 80
@@ -104,21 +101,6 @@ resource "aws_cloudfront_distribution" "this" {
       origin_ssl_protocols     = ["TLSv1.2"]
       origin_keepalive_timeout = 5
       origin_read_timeout      = 30
-    }
-  }
-
-  origin {
-    domain_name = module.api_beta.api_domain_name
-    origin_id   = local.beta_api_name
-    origin_path = "/${module.api_beta.api_stage}"
-
-    custom_origin_config {
-      http_port                = 80
-      https_port               = 443
-      origin_protocol_policy   = "https-only"
-      origin_ssl_protocols     = ["TLSv1.2"]
-      origin_keepalive_timeout = 5
-      origin_read_timeout      = 5
     }
   }
 
@@ -137,15 +119,36 @@ resource "aws_cloudfront_distribution" "this" {
       }
     }
 
-  
-    function_association {
-      event_type   = "viewer-request"
-      function_arn = aws_cloudfront_function.route_by_header.arn
-    }
-
     min_ttl     = 0
     default_ttl = 3600
     max_ttl     = 86400
+    compress    = true
+  }
+
+  # Ordered cache behavior for API requests
+  ordered_cache_behavior {
+    path_pattern           = "/${local.api_base_path}/*"
+    target_origin_id       = local.alpha_api_name
+    viewer_protocol_policy = "redirect-to-https"
+
+    allowed_methods = ["GET", "HEAD", "OPTIONS"]
+    cached_methods  = ["GET", "HEAD"]
+
+    forwarded_values {
+      query_string = true
+      cookies {
+        forward = "none"
+      }
+    }
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.api_rewrite_to_proxy_path.arn
+    }
+
+    min_ttl     = 0
+    default_ttl = 0
+    max_ttl     = 0
     compress    = true
   }
 
@@ -166,9 +169,52 @@ resource "aws_cloudfront_distribution" "this" {
     error_caching_min_ttl = 0
   }
 
-  # Ordered cache behavior for API requests
-  ordered_cache_behavior {
-    path_pattern           = "/${local.api_base_path}/${local.alpha_api_path}/*"
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+
+  viewer_certificate {
+    cloudfront_default_certificate = true
+  }
+}
+
+resource "aws_cloudfront_distribution" "api_domain" {
+  enabled = true
+
+  origin {
+    domain_name = module.api.api_domain_name
+    origin_id   = local.api_base_path
+    origin_path = "/${module.api.api_stage}"
+
+    custom_origin_config {
+      http_port                = 80
+      https_port               = 443
+      origin_protocol_policy   = "https-only"
+      origin_ssl_protocols     = ["TLSv1.2"]
+      origin_keepalive_timeout = 5
+      origin_read_timeout      = 30
+    }
+  }
+
+  origin {
+    domain_name = module.api_alpha.api_domain_name
+    origin_id   = local.alpha_api_name
+    origin_path = "/${module.api_alpha.api_stage}"
+
+    custom_origin_config {
+      http_port                = 80
+      https_port               = 443
+      origin_protocol_policy   = "https-only"
+      origin_ssl_protocols     = ["TLSv1.2"]
+      origin_keepalive_timeout = 5
+      origin_read_timeout      = 30
+    }
+  }
+
+  # Default Cache Behavior - Send traffic to the default API
+  default_cache_behavior {
     target_origin_id       = local.alpha_api_name
     viewer_protocol_policy = "redirect-to-https"
 
@@ -183,14 +229,15 @@ resource "aws_cloudfront_distribution" "this" {
     }
 
     min_ttl     = 0
-    default_ttl = 0
-    max_ttl     = 0
+    default_ttl = 3600
+    max_ttl     = 86400
     compress    = true
   }
 
+  # Ordered cache behavior for API requests
   ordered_cache_behavior {
-    path_pattern           = "/${local.api_base_path}/${local.beta_api_path}/*"
-    target_origin_id       = local.beta_api_name
+    path_pattern           = "/${local.api_base_path}/${local.proxy_path_prefix}/*"
+    target_origin_id       = local.api_base_path
     viewer_protocol_policy = "redirect-to-https"
 
     allowed_methods = ["GET", "HEAD", "OPTIONS"]

@@ -33,6 +33,13 @@ deploy:
     terraform init
     terraform apply -var lambda_zip_path=$(just zip-path)
 
+local-deploy:
+    #!/usr/bin/env bash
+    just deploy
+    cd tf  
+    STATIC_BUCKET_NAME=$(terraform output -raw static_bucket_name)
+    aws s3 sync {{justfile_directory()}}/static s3://$STATIC_BUCKET_NAME/ --delete
+
 destroy:
     #!/usr/bin/env bash
     set -euo pipefail

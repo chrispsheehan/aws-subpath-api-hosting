@@ -20,3 +20,9 @@ variable "lambda_zip_path" {
   type        = string
   description = "Lambda code (zipped) to be deployed"
 }
+
+variable "is_proxy_mode" {
+  type        = bool
+  description = "If true forward /api traffic to /api/proxy"
+  default     = false
+}
