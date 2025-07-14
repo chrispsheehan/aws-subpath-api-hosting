@@ -2,24 +2,28 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Root SPA</title>
+  <title>Subpath 1 SPA</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- ✅ Load libraries first -->
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/react-router-dom@6/umd/react-router-dom.development.js"></script>
 </head>
 <body>
   <div id="root">Loading...</div>
+
+  <!-- ✅ Your code comes after the libraries -->
   <script type="text/javascript">
     const { BrowserRouter, Routes, Route, Link } = ReactRouterDOM;
     const { useState, useEffect } = React;
 
     function Home() {
-      return React.createElement("h2", null, "🏠 Root Home");
+      return React.createElement("h2", null, "🏠 Subpath1 Home");
     }
 
-    function Page1() {
-      return React.createElement("h2", null, "📄 Root Page 1");
+    function PageA() {
+      return React.createElement("h2", null, "📄 Subpath1 Page A");
     }
 
     function ApiResponse() {
@@ -37,18 +41,17 @@
       return React.createElement(
         "div",
         null,
-        React.createElement("h1", null, "🌐 Root React SPA"),
+        React.createElement("h1", null, "📦 Subpath1 React SPA"),
         React.createElement("nav", null,
-          React.createElement(Link, { to: "/" }, "Home"), " | ",
-          React.createElement(Link, { to: "/page1" }, "Page 1"), " | ",
-          React.createElement("a", { href: "/subpath1/" }, "Subpath 1"), " | ",
-          React.createElement("a", { href: "/subpath2/" }, "Subpath 2")
+          React.createElement(Link, { to: "/subpath1" }, "Home"), " | ",
+          React.createElement(Link, { to: "/subpath1/page-a" }, "Page A"), " | ",
+          React.createElement("a", { href: "/" }, "Back to Root")
         ),
         React.createElement("hr"),
         React.createElement(ApiResponse),
         React.createElement(Routes, null,
-          React.createElement(Route, { path: "/", element: React.createElement(Home) }),
-          React.createElement(Route, { path: "/page1", element: React.createElement(Page1) })
+          React.createElement(Route, { path: "/subpath1", element: React.createElement(Home) }),
+          React.createElement(Route, { path: "/subpath1/page-a", element: React.createElement(PageA) })
         )
       );
     }
