@@ -25,6 +25,24 @@ app.get('/hello', (req, res) => {
   });
 });
 
+app.get('/no-auth', (req, res) => {
+  res.status(401).json({
+    message: "Unauthorized"
+  });
+});
+
+app.get('/forbidden', (req, res) => {
+  res.status(403).json({
+    message: "Forbidden"
+  });
+});
+
+app.get('/error', (req, res) => {
+  res.status(500).json({
+    message: "Internal server error"
+  });
+});
+
 // Catch-all route
 app.use((req, res) => {
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;

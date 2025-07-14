@@ -24,5 +24,5 @@ variable "lambda_zip_path" {
 variable "is_proxy_mode" {
   type        = bool
   description = "If true forward /api traffic to /api/proxy"
-  default     = true
+  default     = false
 }
