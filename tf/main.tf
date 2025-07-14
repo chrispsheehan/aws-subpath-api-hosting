@@ -75,6 +75,16 @@ resource "aws_cloudfront_function" "api_rewrite_to_proxy_path" {
   })
 }
 
+resource "aws_cloudfront_function" "handle_spa_routing" {
+  name    = "${var.function_stage}-handle-spa-routing"
+  runtime = "cloudfront-js-1.0"
+  publish = true
+
+  code = templatefile("${path.module}/handle-spa-routing.js.tpl", {
+    api_base_path     = local.api_base_path
+  })
+}
+
 resource "aws_cloudfront_distribution" "ui" {
   enabled = true
 
@@ -118,6 +128,11 @@ resource "aws_cloudfront_distribution" "ui" {
       }
     }
 
+    # function_association {
+    #   event_type   = "viewer-request"
+    #   function_arn = aws_cloudfront_function.handle_spa_routing.arn
+    # }
+
     min_ttl     = 0
     default_ttl = 3600
     max_ttl     = 86400
@@ -146,14 +161,14 @@ resource "aws_cloudfront_distribution" "ui" {
     max_ttl     = 0
   }
 
-  # Custom error response for access denied
-  custom_error_response {
-    error_caching_min_ttl = 0
-    error_code            = 403
-    response_code         = 200
-    response_page_path    = "/403.html"
-    # response_page_path    = "/client1/index.html"
-  }
+  # # Custom error response for access denied
+  # custom_error_response {
+  #   error_caching_min_ttl = 0
+  #   error_code            = 403
+  #   response_code         = 200
+  #   response_page_path    = "/403.html"
+  #   # response_page_path    = "/client1/index.html"
+  # }
 
   # Custom error response for not found
   custom_error_response {
