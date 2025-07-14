@@ -130,25 +130,20 @@ resource "aws_cloudfront_distribution" "ui" {
     target_origin_id       = local.alpha_api_name
     viewer_protocol_policy = "redirect-to-https"
 
-    allowed_methods = ["GET", "HEAD", "OPTIONS"]
+    allowed_methods = ["GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE"]
     cached_methods  = ["GET", "HEAD"]
-
-    forwarded_values {
-      query_string = true
-      cookies {
-        forward = "none"
-      }
-    }
 
     function_association {
       event_type   = "viewer-request"
       function_arn = aws_cloudfront_function.api_rewrite_to_proxy_path.arn
     }
 
+    cache_policy_id          = data.aws_cloudfront_cache_policy.caching_disabled.id
+    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_except_host.id
+
     min_ttl     = 0
     default_ttl = 0
     max_ttl     = 0
-    compress    = true
   }
 
   # Custom error response for access denied
@@ -232,12 +227,11 @@ resource "aws_cloudfront_distribution" "api_domain" {
     }
   }
 
-  # Default Cache Behavior - Send traffic to the default API
   default_cache_behavior {
     target_origin_id       = local.alpha_api_name
     viewer_protocol_policy = "redirect-to-https"
 
-    allowed_methods = ["GET", "HEAD", "OPTIONS"]
+    allowed_methods = ["GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE"]
     cached_methods  = ["GET", "HEAD"]
 
     function_association {
@@ -245,26 +239,20 @@ resource "aws_cloudfront_distribution" "api_domain" {
       function_arn = aws_cloudfront_function.api_strip_prefix.arn
     }
 
-    forwarded_values {
-      query_string = true
-      cookies {
-        forward = "none"
-      }
-    }
+    cache_policy_id          = data.aws_cloudfront_cache_policy.caching_disabled.id
+    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_except_host.id
 
     min_ttl     = 0
-    default_ttl = 3600
-    max_ttl     = 86400
-    compress    = true
+    default_ttl = 0
+    max_ttl     = 0
   }
 
-  # Ordered cache behavior for API requests
   ordered_cache_behavior {
     path_pattern           = "/${local.api_base_path}/${local.proxy_path_prefix}/*"
     target_origin_id       = local.api_base_path
     viewer_protocol_policy = "redirect-to-https"
 
-    allowed_methods = ["GET", "HEAD", "OPTIONS"]
+    allowed_methods = ["GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE"]
     cached_methods  = ["GET", "HEAD"]
 
     function_association {
@@ -272,17 +260,12 @@ resource "aws_cloudfront_distribution" "api_domain" {
       function_arn = aws_cloudfront_function.api_strip_proxy_prefix.arn
     }
 
-    forwarded_values {
-      query_string = true
-      cookies {
-        forward = "none"
-      }
-    }
+    cache_policy_id          = data.aws_cloudfront_cache_policy.caching_disabled.id
+    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_except_host.id
 
     min_ttl     = 0
     default_ttl = 0
     max_ttl     = 0
-    compress    = true
   }
 
   restrictions {
