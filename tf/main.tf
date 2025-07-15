@@ -128,10 +128,10 @@ resource "aws_cloudfront_distribution" "ui" {
       }
     }
 
-    # function_association {
-    #   event_type   = "viewer-request"
-    #   function_arn = aws_cloudfront_function.handle_spa_routing.arn
-    # }
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.handle_spa_routing.arn
+    }
 
     min_ttl     = 0
     default_ttl = 3600
