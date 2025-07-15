@@ -161,15 +161,6 @@ resource "aws_cloudfront_distribution" "ui" {
     max_ttl     = 0
   }
 
-  # # Custom error response for access denied
-  # custom_error_response {
-  #   error_caching_min_ttl = 0
-  #   error_code            = 403
-  #   response_code         = 200
-  #   response_page_path    = "/403.html"
-  #   # response_page_path    = "/client1/index.html"
-  # }
-
   # Custom error response for not found
   custom_error_response {
     error_code            = 404
