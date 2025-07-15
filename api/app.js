@@ -2,25 +2,51 @@ const express = require('express');
 const awsServerlessExpress = require('aws-serverless-express');
 const app = express();
 
-const basePath = "/dev/api/"
+const basePath = process.env.STAGE_NAME || 'unknown-stage';
+const apiName = process.env.API_NAME || 'unknown-api';
 
-// remove base path from the call url
-app.use((req, res, next) => {
-  if (req.url.startsWith(basePath)) {
-      req.url = req.url.slice(basePath.length);
-  }
-  next();
+
+// Route for /hello
+app.get(`/${basePath}/hello`, (req, res) => {
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  res.status(200).json({
+    msg: `/hello AWS Lambda is alive!`,
+    ip: ip,
+    path: req.url,
+    apiName: apiName
+  });
 });
 
-// Define routes this needs to contain the stage path
-app.get('/hello', (req, res) => {
-  res.status(200).json({msg: "/hello Hello, this is your AWS Lambda function, [mushroom] testy badgers!"});
+app.get(`/${basePath}/no-auth`, (req, res) => {
+  res.status(401).json({
+    message: "Unauthorized"
+  });
 });
 
-// Catch-all route for unmatched paths
+app.get(`/${basePath}/forbidden`, (req, res) => {
+  res.status(403).json({
+    message: "Forbidden"
+  });
+});
+
+app.get(`/${basePath}/error`, (req, res) => {
+  res.status(500).json({
+    message: "Internal server error"
+  });
+});
+
+// Catch-all route
 app.use((req, res) => {
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-  res.status(200).json({msg: `Hello, here's your IP: ${ip} req ${req.url}`});
+  res.status(200).json({
+    msg: `Hello from catch-all`,
+    ip: ip,
+    path: req.path,
+    originalUrl: req.originalUrl,
+    baseUrl: req.url,
+    url: req.url,
+    apiName: apiName
+  });
 });
 
 // Create and export the server

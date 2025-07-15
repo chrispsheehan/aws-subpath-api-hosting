@@ -31,22 +31,12 @@ jobs:
       - name: tf-set-envs
         shell: bash
         run: |
-          cd tf
-          DISTRIBUTION_ID=$(terraform output -raw cloudfront_dist_id)
-          echo "DISTRIBUTION_ID=$DISTRIBUTION_ID"
-          echo "DISTRIBUTION_ID=$DISTRIBUTION_ID" >> $GITHUB_ENV
-  
+          cd tf  
           STATIC_BUCKET_NAME=$(terraform output -raw static_bucket_name)
           echo "STATIC_BUCKET_NAME=$STATIC_BUCKET_NAME"
           echo "STATIC_BUCKET_NAME=$STATIC_BUCKET_NAME" >> $GITHUB_ENV
 
       - name: s3-sync
         shell: bash
-        run: aws s3 sync ${GITHUB_WORKSPACE}/static s3://$STATIC_BUCKET_NAME/ --delete
+        run: aws s3 sync ${GITHUB_WORKSPACE}/dist s3://$STATIC_BUCKET_NAME/ --delete
   
-      - name: web-refresh
-        shell: bash
-        run: |
-          aws cloudfront get-distribution --id $DISTRIBUTION_ID --output json
-          aws cloudfront create-invalidation --distribution-id $DISTRIBUTION_ID --paths "/*"
-

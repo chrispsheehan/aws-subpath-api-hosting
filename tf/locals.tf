@@ -1,10 +1,12 @@
 locals {
-  lambda_runtime      = "nodejs18.x"
-  lambda_name         = "${var.function_stage}-${var.function_name}"
-  lambda_bucket       = "${local.lambda_name}-bucket"
-  domain              = local.lambda_name
-  api_domain          = "${local.lambda_name}-api"
-  default_root_object = "index.html"
-  s3_origin_id        = "s3-root-origin"
-  auth_header_name    = "X-Custom-Auth-Header"
+  domain                  = "aws-subpath-api-hosting"
+  lambda_code_bucket      = "${data.aws_caller_identity.current.account_id}-${local.domain}-lambda-code-bucket"
+  static_web_files_bucket = "${data.aws_caller_identity.current.account_id}-${local.domain}"
+  default_root_object     = "index.html"
+  s3_origin_id            = "s3-root-origin"
+  auth_header_name        = "X-Custom-Auth-Header"
+
+  api_base_path     = "api"
+  alpha_api_name    = "${local.api_base_path}-alpha"
+  proxy_path_prefix = "proxy"
 }

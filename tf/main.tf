@@ -1,5 +1,5 @@
 resource "aws_s3_bucket" "lambda_bucket" {
-  bucket = local.lambda_bucket
+  bucket = local.lambda_code_bucket
 }
 
 resource "aws_s3_object" "lambda_zip" {
@@ -9,56 +9,26 @@ resource "aws_s3_object" "lambda_zip" {
   force_destroy = true
 }
 
-resource "aws_iam_role" "iam_for_lambda" {
-  name               = "${local.lambda_name}-iam"
-  assume_role_policy = data.aws_iam_policy_document.assume_role.json
+module "api_alpha" {
+  source = "./api"
+
+  api_name              = "${local.domain}-${local.alpha_api_name}"
+  api_stage             = var.function_stage
+  lambda_code_bucket    = aws_s3_bucket.lambda_bucket.bucket
+  lambda_code_s3_object = aws_s3_object.lambda_zip.key
 }
 
-resource "aws_lambda_function" "lambda" {
-  depends_on = [aws_s3_object.lambda_zip]
+module "api" {
+  source = "./api"
 
-  function_name = local.lambda_name
-  role          = aws_iam_role.iam_for_lambda.arn
-  handler       = "app.handler"
-  runtime       = local.lambda_runtime
-
-  s3_bucket = aws_s3_bucket.lambda_bucket.bucket
-  s3_key    = aws_s3_object.lambda_zip.key
-}
-
-resource "aws_lambda_permission" "this" {
-  statement_id  = "${local.lambda_name}-AllowAPIGatewayInvoke"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.lambda.function_name
-  principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_apigatewayv2_stage.this.execution_arn}/*"
-}
-
-resource "aws_apigatewayv2_api" "this" {
-  name          = "${local.lambda_name}-APIGateway"
-  protocol_type = "HTTP"
-}
-
-resource "aws_apigatewayv2_integration" "this" {
-  api_id           = aws_apigatewayv2_api.this.id
-  integration_type = "AWS_PROXY"
-  integration_uri  = aws_lambda_function.lambda.invoke_arn
-}
-
-resource "aws_apigatewayv2_route" "this" {
-  api_id    = aws_apigatewayv2_api.this.id
-  route_key = "ANY /{proxy+}"
-  target    = "integrations/${aws_apigatewayv2_integration.this.id}"
-}
-
-resource "aws_apigatewayv2_stage" "this" {
-  api_id      = aws_apigatewayv2_api.this.id
-  name        = var.function_stage
-  auto_deploy = true
+  api_name              = "${local.domain}-${local.api_base_path}"
+  api_stage             = var.function_stage
+  lambda_code_bucket    = aws_s3_bucket.lambda_bucket.bucket
+  lambda_code_s3_object = aws_s3_object.lambda_zip.key
 }
 
 resource "aws_s3_bucket" "website_files" {
-  bucket        = local.domain
+  bucket        = local.static_web_files_bucket
   force_destroy = true
 }
 
@@ -93,7 +63,30 @@ resource "aws_s3_bucket_website_configuration" "this" {
   }
 }
 
-resource "aws_cloudfront_distribution" "this" {
+resource "aws_cloudfront_function" "api_rewrite_to_proxy_path" {
+  name    = "${var.function_stage}-api-rewrite-to-proxy-path"
+  runtime = "cloudfront-js-1.0"
+  publish = true
+
+  code = templatefile("${path.module}/functions/api-rewrite-to-proxy-path.js.tpl", {
+    api_base_path     = local.api_base_path
+    proxy_path_prefix = local.proxy_path_prefix
+    is_proxy_mode     = var.is_proxy_mode
+  })
+}
+
+resource "aws_cloudfront_function" "handle_spa_routing" {
+  name    = "${var.function_stage}-handle-spa-routing"
+  runtime = "cloudfront-js-1.0"
+  publish = true
+
+  code = templatefile("${path.module}/functions/handle-spa-routing.js.tpl", {
+    api_base_path = local.api_base_path
+    known_routes  = var.react_known_paths
+  })
+}
+
+resource "aws_cloudfront_distribution" "ui" {
   enabled = true
 
   origin {
@@ -107,15 +100,9 @@ resource "aws_cloudfront_distribution" "this" {
     }
   }
 
-  # Origin for the API Gateway
   origin {
-    domain_name = replace(
-      replace(aws_apigatewayv2_stage.this.invoke_url, "https://", ""),
-      "/${aws_apigatewayv2_stage.this.name}",
-      ""
-    )
-    origin_id   = local.api_domain
-    origin_path = "/${aws_apigatewayv2_stage.this.name}"
+    domain_name = aws_cloudfront_distribution.api_domain.domain_name
+    origin_id   = local.alpha_api_name
 
     custom_origin_config {
       http_port                = 80
@@ -142,19 +129,37 @@ resource "aws_cloudfront_distribution" "this" {
       }
     }
 
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.handle_spa_routing.arn
+    }
+
     min_ttl     = 0
     default_ttl = 3600
     max_ttl     = 86400
     compress    = true
   }
 
-  # Custom error response for access denied
-  custom_error_response {
-    error_caching_min_ttl = 0
-    error_code            = 403
-    response_code         = 200
-    response_page_path    = "/403.html"
-    # response_page_path    = "/client1/index.html"
+  # Ordered cache behavior for API requests
+  ordered_cache_behavior {
+    path_pattern           = "/${local.api_base_path}/*"
+    target_origin_id       = local.alpha_api_name
+    viewer_protocol_policy = "redirect-to-https"
+
+    allowed_methods = ["GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE"]
+    cached_methods  = ["GET", "HEAD"]
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.api_rewrite_to_proxy_path.arn
+    }
+
+    cache_policy_id          = data.aws_cloudfront_cache_policy.caching_disabled.id
+    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_except_host.id
+
+    min_ttl     = 0
+    default_ttl = 0
+    max_ttl     = 0
   }
 
   # Custom error response for not found
@@ -165,26 +170,109 @@ resource "aws_cloudfront_distribution" "this" {
     error_caching_min_ttl = 0
   }
 
-  # Ordered cache behavior for API requests
-  ordered_cache_behavior {
-    path_pattern           = "/api/*"
-    target_origin_id       = local.api_domain
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+
+  viewer_certificate {
+    cloudfront_default_certificate = true
+  }
+}
+
+resource "aws_cloudfront_function" "api_strip_prefix" {
+  name    = "${var.function_stage}-api-strip-prefix"
+  runtime = "cloudfront-js-1.0"
+  publish = true
+
+  code = templatefile("${path.module}/functions/api-strip-prefix.js.tpl", {
+    prefix_to_strip = local.api_base_path
+  })
+}
+
+resource "aws_cloudfront_function" "api_strip_proxy_prefix" {
+  name    = "${var.function_stage}-api-strip-proxy-prefix"
+  runtime = "cloudfront-js-1.0"
+  publish = true
+
+  code = templatefile("${path.module}/functions/api-strip-prefix.js.tpl", {
+    prefix_to_strip = "${local.api_base_path}/${local.proxy_path_prefix}"
+  })
+}
+
+resource "aws_cloudfront_distribution" "api_domain" {
+  enabled = true
+
+  origin {
+    domain_name = module.api.api_domain_name
+    origin_id   = local.api_base_path
+    origin_path = "/${module.api.api_stage}"
+
+    custom_origin_config {
+      http_port                = 80
+      https_port               = 443
+      origin_protocol_policy   = "https-only"
+      origin_ssl_protocols     = ["TLSv1.2"]
+      origin_keepalive_timeout = 5
+      origin_read_timeout      = 30
+    }
+  }
+
+  origin {
+    domain_name = module.api_alpha.api_domain_name
+    origin_id   = local.alpha_api_name
+    origin_path = "/${module.api_alpha.api_stage}"
+
+    custom_origin_config {
+      http_port                = 80
+      https_port               = 443
+      origin_protocol_policy   = "https-only"
+      origin_ssl_protocols     = ["TLSv1.2"]
+      origin_keepalive_timeout = 5
+      origin_read_timeout      = 30
+    }
+  }
+
+  default_cache_behavior {
+    target_origin_id       = local.alpha_api_name
     viewer_protocol_policy = "redirect-to-https"
 
-    allowed_methods = ["GET", "HEAD", "OPTIONS"]
+    allowed_methods = ["GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE"]
     cached_methods  = ["GET", "HEAD"]
 
-    forwarded_values {
-      query_string = true
-      cookies {
-        forward = "none"
-      }
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.api_strip_prefix.arn
     }
 
+    cache_policy_id          = data.aws_cloudfront_cache_policy.caching_disabled.id
+    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_except_host.id
+
     min_ttl     = 0
-    default_ttl = 3600
-    max_ttl     = 86400
-    compress    = true
+    default_ttl = 0
+    max_ttl     = 0
+  }
+
+  ordered_cache_behavior {
+    path_pattern           = "/${local.api_base_path}/${local.proxy_path_prefix}/*"
+    target_origin_id       = local.api_base_path
+    viewer_protocol_policy = "redirect-to-https"
+
+    allowed_methods = ["GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE"]
+    cached_methods  = ["GET", "HEAD"]
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.api_strip_proxy_prefix.arn
+    }
+
+    cache_policy_id          = data.aws_cloudfront_cache_policy.caching_disabled.id
+    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_except_host.id
+
+    min_ttl     = 0
+    default_ttl = 0
+    max_ttl     = 0
   }
 
   restrictions {
