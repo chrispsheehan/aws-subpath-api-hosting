@@ -11,13 +11,23 @@ format:
     cd tf
     terraform fmt --recursive
 
-build:
+api-build:
     #!/usr/bin/env bash
     zip_path=$(just zip-path)
     cd api
     npm install
     rm -f $zip_path
     zip -r $zip_path *
+
+frontend-build:
+    #!/usr/bin/env bash
+    cd frontend
+    npm i
+    npm run build
+
+build:
+  just api-build
+  just frontend-build
 
 plan:
     #!/usr/bin/env bash
@@ -38,7 +48,7 @@ local-deploy:
     just deploy
     cd tf  
     STATIC_BUCKET_NAME=$(terraform output -raw static_bucket_name)
-    aws s3 sync {{justfile_directory()}}/static s3://$STATIC_BUCKET_NAME/ --delete
+    aws s3 sync {{justfile_directory()}}/dist s3://$STATIC_BUCKET_NAME/ --delete
 
 destroy:
     #!/usr/bin/env bash
