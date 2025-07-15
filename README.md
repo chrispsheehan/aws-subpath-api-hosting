@@ -27,4 +27,4 @@ cloudfront_url = "https://d2t9lieeiaps7k.cloudfront.net"
 
 ## infra
 
-![Infrastructure](docs/infra.drawio.png)
+![Infrastructure](docs/infra.png)
