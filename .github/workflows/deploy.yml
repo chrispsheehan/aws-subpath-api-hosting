@@ -38,5 +38,5 @@ jobs:
 
       - name: s3-sync
         shell: bash
-        run: aws s3 sync ${GITHUB_WORKSPACE}/static s3://$STATIC_BUCKET_NAME/ --delete
+        run: aws s3 sync ${GITHUB_WORKSPACE}/dist s3://$STATIC_BUCKET_NAME/ --delete
   

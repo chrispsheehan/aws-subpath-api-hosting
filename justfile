@@ -2,10 +2,6 @@ zip-path:
     #!/usr/bin/env bash
     echo {{justfile_directory()}}/api.zip
 
-index-path:
-    #!/usr/bin/env bash
-    echo {{justfile_directory()}}/static/index.html
-
 format:
     #!/usr/bin/env bash
     cd tf
