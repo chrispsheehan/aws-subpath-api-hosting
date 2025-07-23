@@ -1,6 +1,16 @@
 function handler(event) {
   var request = event.request;
-  var uri = request.uri;
+  var uri = event.request.uri;
+  var queryStrings = [];
+  
+  for (var key in event.request.querystring) {
+    queryStrings.push(key)
+  }
+
+  // Skip rewriting if there's a query string
+  if (queryStrings.length > 0) {
+    return request;
+  }
 
   // Bypass API and static assets
   if (uri.startsWith("/${api_base_path}") || uri.includes(".")) {
