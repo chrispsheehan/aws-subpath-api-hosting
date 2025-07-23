@@ -27,7 +27,7 @@ function QueryDebug() {
 export default function App() {
   return (
     <div>
-      <h1>React SPA with Build Step</h1>
+      <h1>React SPA App</h1>
       <nav>
         <Link to="/">Home</Link> | <Link to="/page1">Page 1</Link>
       </nav>
