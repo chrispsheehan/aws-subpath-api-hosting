@@ -80,10 +80,7 @@ resource "aws_cloudfront_function" "handle_spa_routing" {
   runtime = "cloudfront-js-1.0"
   publish = true
 
-  code = templatefile("${path.module}/functions/handle-spa-routing.js.tpl", {
-    api_base_path = local.api_base_path
-    known_routes  = var.react_known_paths
-  })
+  code = templatefile("${path.module}/functions/handle-spa-routing.js.tpl", {})
 }
 
 resource "aws_cloudfront_distribution" "ui" {

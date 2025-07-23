@@ -26,9 +26,3 @@ variable "is_proxy_mode" {
   description = "If true forward /api traffic to /api/proxy"
   default     = false
 }
-
-variable "react_known_paths" {
-  type        = list(string)
-  description = "If specified, paths not in list will be 404 on direct navigation and/or refresh. If [] then all paths redirected to index.html (no 404)"
-  default     = ["/", "/page1"]
-}
