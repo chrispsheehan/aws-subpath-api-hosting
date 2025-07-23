@@ -2,15 +2,12 @@ function handler(event) {
   var request = event.request;
   var uri = event.request.uri;
 
-  var queryStrings = [];
-  for (var key in event.request.querystring) {
-    queryStrings.push(key)
-  }
+  var hasQuery = Object.keys(request.querystring || {}).length > 0;
 
   // Append index.html if needed
   if (request.uri.endsWith("/")) {
     request.uri += "index.html";
-  } else if (queryStrings.length > 0) {
+  } else if (hasQuery) {
     request.uri = "/index.html";
   } else if (!request.uri.includes(".")) {
     request.uri += "/index.html";
