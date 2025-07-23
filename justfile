@@ -44,7 +44,11 @@ local-deploy:
     just deploy
     cd tf  
     STATIC_BUCKET_NAME=$(terraform output -raw static_bucket_name)
+    UI_DIST_ID=$(terraform output -raw ui_dist_id)
+    API_DIST_ID=$(terraform output -raw api_dist_id)
     aws s3 sync {{justfile_directory()}}/dist s3://$STATIC_BUCKET_NAME/ --delete
+    aws cloudfront create-invalidation --distribution-id $UI_DIST_ID --paths "/*" --output text
+    aws cloudfront create-invalidation --distribution-id $API_DIST_ID --paths "/*" --output text
 
 destroy:
     #!/usr/bin/env bash
